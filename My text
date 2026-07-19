@@ -1,0 +1,20 @@
+Database → Entity → Mapper → DTO → API response
+API request -> DTO -> Mapper -> Entity -> Database
+
+----------------------------------
+Frameworks need a way to create the object before filling it.
+A mapper needs an empty constructor because frameworks must be able to create the mapper object automatically.
+new Mapper()
+
+-----------------------------------------
+🏠 Think of Spring like a manager
+
+Spring is like a manager that:
+
+creates objects (beans)
+stores them
+gives them when needed
+controls their lifecycle
+
+So you don’t use new manually.
+--------------------------------------------------

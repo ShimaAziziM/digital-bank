@@ -1,0 +1,554 @@
+📄 STEP 1:
+
+👤 com.digitalbank.entity.Customer
+id (PK)
+firstName
+lastName
+username
+phone
+
+
+🏦 com.digitalbank.entity.BankAccount
+id (PK)
+customer_id (FK → com.digitalbank.entity.Customer.id)
+accountNumber
+accountIBAN
+accountType (CURRENT / SAVINGS)
+balance
+com.digitalbank.entity.Status (ACTIVE, BLOCKED, CLOSED)
+
+
+💳 com.digitalbank.entity.Transaction
+id (PK)
+account_id (FK → com.digitalbank.entity.BankAccount.id)
+amount
+type (DEPOSIT / WITHDRAW)
+createdAt
+reference_id (for linking transfers)
+
+__________________________________________________________________________________________________
+
+📄 Step 2 — Business Rules & Relationships
+👤 com.digitalbank.entity.Customer → com.digitalbank.entity.BankAccount
+
+Rule:
+
+One customer can have multiple bank accounts
+
+Relationship:
+com.digitalbank.entity.Customer (1) ─────── (∞) com.digitalbank.entity.BankAccount
+
+Business rules:
+A customer must exist before creating an account
+Each account belongs to exactly one customer
+
+🏦 com.digitalbank.entity.BankAccount → com.digitalbank.entity.Transaction
+Rule:
+One account can have many transactions
+com.digitalbank.entity.BankAccount (1) ─────── (∞) com.digitalbank.entity.Transaction
+
+Business rules:
+Every transaction must belong to an account
+Balance is affected only through transactions (important idea)
+
+💳 Transfer Logic (VERY IMPORTANT)
+Rule:
+A transfer is ALWAYS:
+1 WITHDRAW transaction (sender account)
+1 DEPOSIT transaction (receiver account)
+Link:
+com.digitalbank.entity.Transaction.reference_id connects both rows
+
+Example:
+
+account_id	type	amount	reference_id
+A	      WITHDRAW	 100	   TX-1
+B	       DEPOSIT	 100	   TX-1
+⚖️ Account Balance Rule
+Rule:
+Balance is NOT randomly updated.
+
+👉 It is always based on transactions:
+
+DEPOSIT → + balance
+WITHDRAW → - balance
+
+🚨 Important constraints
+com.digitalbank.entity.BankAccount:
+balance cannot go below 0 (optional rule for now)
+com.digitalbank.entity.Status must be ACTIVE to allow transactions
+
+com.digitalbank.entity.Transaction:
+cannot exist without account_id
+amount must be > 0
+🧠 Final mental model
+com.digitalbank.entity.Customer
+   ↓ (owns)
+com.digitalbank.entity.BankAccount
+   ↓ (has)
+com.digitalbank.entity.Transaction
+   ↓ (linked via reference_id for transfers)
+com.digitalbank.entity.Transaction
+
+_______________________________________________________________________________________________
+
+
+📄 Step 3 — Define APIs (End Points Design)
+
+ 👤 com.digitalbank.entity.Customer APIs
+
+1. Create customer
+
+```text id="api1"
+POST /customers
+```
+
+ 2. Get customer
+
+```text id="api2"
+GET /customers/{id}
+```
+
+3. List customers
+
+```text id="api3"
+GET /customers
+```
+
+---
+
+🏦 Bank Account APIs
+
+1. Create account for customer
+
+```text id="api4"
+POST /accounts
+```
+
+👉 Input: customer_id, accountType, currency
+
+---
+
+2. Get account details
+
+```text id="api5"
+GET /accounts/{id}
+```
+
+---
+
+3. Get customer accounts
+
+```text id="api6"
+GET /customers/{id}/accounts
+```
+
+---
+
+ 💳 com.digitalbank.entity.Transaction APIs
+
+ 1. Deposit money
+
+```text id="api7"
+POST /transactions/deposit
+```
+
+---
+
+ 2. Withdraw money
+
+```text id="api8"
+POST /transactions/withdraw
+```
+
+---
+
+ 3. Transfer money
+
+```text id="api9"
+POST /transactions/transfer
+```
+
+---
+
+ 4. Account transaction history
+
+```text id="api10"
+GET /accounts/{id}/transactions
+```
+
+---
+🧠 Important rules (very important)
+
+ Deposit
+
+only needs account_id + amount
+
+Withdraw
+
+check balance first
+Transfer
+
+creates **2 transactions**
+
+  * withdraw from sender
+  * deposit to receiver
+  * same reference_id
+
+________________________________________________________________________
+
+📄 Step 4 — Service Layer Design (Spring Boot)
+
+🧠 Core idea
+
+Each service = one responsibility.
+
+---
+
+👤 1. com.digitalbank.service.CustomerService
+
+```text id="srv1"
+com.digitalbank.service.CustomerService
+```
+
+Responsibilities:
+
+* create customer
+* get customer
+* list customers
+
+Methods:
+
+* createCustomer()
+* getCustomerById()
+* getAllCustomers()
+
+---
+
+🏦 2. AccountService
+
+```text id="srv2"
+AccountService
+```
+Responsibilities:
+
+* create account
+* get account
+* get customer accounts
+* manage account com.digitalbank.entity.Status
+
+Methods:
+
+* createAccount(customerId)
+* getAccountById()
+* getAccountsByCustomer(customerId)
+* blockAccount()
+* activateAccount()
+
+---
+
+💳 3. com.digitalbank.service.TransactionService (MOST IMPORTANT)
+
+```text id="srv3"
+com.digitalbank.service.TransactionService
+```
+
+Responsibilities:
+
+* deposit money
+* withdraw money
+* transfer money
+* create transaction history
+
+---
+
+💰 deposit flow
+
+```text id="dep_flow"
+1. find account
+2. validate account ACTIVE
+3. create com.digitalbank.entity.Transaction (DEPOSIT)
+4. increase balance
+5. save
+```
+
+---
+
+💸 withdraw flow
+
+```text id="wd_flow"
+1. find account
+2. check com.digitalbank.entity.Status ACTIVE
+3. check balance >= amount
+4. create com.digitalbank.entity.Transaction (WITHDRAW)
+5. decrease balance
+6. save
+```
+
+---
+
+ 🔁 transfer flow (VERY IMPORTANT)
+
+```text id="tr_flow"
+1. find sender account
+2. find receiver account
+3. check sender balance
+4. create referenceId (TX-123)
+5. create WITHDRAW transaction (sender)
+6. create DEPOSIT transaction (receiver)
+7. update both balances
+8. save everything
+```
+
+---
+
+ ⚠️ IMPORTANT DESIGN RULES
+
+❌ Controller must NOT:
+
+* calculate balance
+* check rules
+* do business logic
+
+✔ Controller only:
+
+* receives request
+* calls service
+* returns response
+
+---
+
+🧱 Service Structure
+
+```text id="structure"
+Controller → Service → Repository → Database
+```
+
+---
+
+# 🧠 Real banking mindset
+
+| Layer      | Responsibility              |
+| ---------- | --------------------------- |
+| Controller | API layer                   |
+| Service    | Business logic (BANK RULES) |
+| Repository | Database access             |
+
+---
+
+ 🔥 Important improvement (real-world)
+
+You should add:
+
+ com.digitalbank.service.TransactionService should use @Transactional
+
+Why?
+
+* transfer must be atomic
+* if one step fails → rollback everything
+
+---
+
+# 🚀 What you just reached
+
+You now designed:
+
+* Entities ✔
+* Relationships ✔
+* APIs ✔
+* Service layer ✔
+
+_____________________________________________________________________________________________________________
+
+📄 Step 5 — Repository Layer + Database Design
+
+🧱 1. Repository Layer (Spring Data JPA)
+
+Each table = one repository.
+
+---
+ 👤 com.digitalbank.repository.CustomerRepository
+
+```text id="repo1"
+interface com.digitalbank.repository.CustomerRepository extends JpaRepository<com.digitalbank.entity.Customer, Long>
+```
+
+ Purpose:
+
+* save customer
+* find customer
+* list customers
+
+---
+
+🏦 com.digitalbank.repository.BankAccountRepository
+
+```text id="repo2"
+interface com.digitalbank.repository.BankAccountRepository extends JpaRepository<com.digitalbank.entity.BankAccount, Long>
+```
+
+Extra queries:
+
+* findByCustomerId()
+* findByAccountNumber()
+
+---
+
+💳 com.digitalbank.repository.TransactionRepository
+
+```text id="repo3"
+interface com.digitalbank.repository.TransactionRepository extends JpaRepository<com.digitalbank.entity.Transaction, Long>
+```
+
+Extra queries:
+
+* findByAccountId()
+* findByReferenceId()
+
+---
+
+ 🗄️ 2. Database Relationships (VERY IMPORTANT)
+
+---
+
+👤 com.digitalbank.entity.Customer Table
+
+```text id="db1"
+customer
+--------
+id (PK)
+first_name
+last_name
+username
+phone
+```
+
+---
+
+🏦 com.digitalbank.entity.BankAccount Table
+
+```text id="db2"
+bank_account
+------------
+id (PK)
+customer_id (FK → customer.id)
+account_number
+account_iban
+account_type
+balance
+com.digitalbank.entity.Status
+```
+
+---
+
+ 💳 com.digitalbank.entity.Transaction Table
+
+```text id="db3"
+transaction
+-----------
+id (PK)
+account_id (FK → bank_account.id)
+amount
+type
+createdAt
+reference_id
+```
+
+---
+
+🔗 3. JPA Relationships (@Annotations)
+
+---
+
+ com.digitalbank.entity.Customer → com.digitalbank.entity.BankAccount
+
+```text id="jpa1"
+@OneToMany(mappedBy = "customer")
+```
+
+```text id="jpa2"
+@ManyToOne
+@JoinColumn(name = "customer_id")
+```
+
+---
+
+## com.digitalbank.entity.BankAccount → com.digitalbank.entity.Transaction
+
+```text id="jpa3"
+@OneToMany(mappedBy = "account")
+```
+
+```text id="jpa4"
+@ManyToOne
+@JoinColumn(name = "account_id")
+```
+
+---
+
+# ⚠️ 4. Important Cascade Rules (Banking-safe)
+
+DO NOT overuse cascade in banking.
+
+### Recommended:
+
+* ❌ No Cascade ALL for transactions
+* ✔ Only controlled saving via Service layer
+
+Reason:
+👉 Banks never delete accounts and transactions together automatically
+
+---
+
+# 🔒 5. Fetch Strategy (VERY IMPORTANT)
+
+ com.digitalbank.entity.BankAccount → Transactions:
+
+```text id="fetch1"
+LAZY loading (recommended)
+```
+
+Why:
+
+* account should NOT always load all transactions
+* performance matters
+
+---
+
+ 🧠 Final Architecture Map
+
+```text id="arch1"
+Controller
+   ↓
+Service (business logic)
+   ↓
+Repository (JPA)
+   ↓
+Database
+```
+
+---
+
+# 💡 Key Banking Rule
+
+> Transactions are NEVER updated or deleted in real systems.
+
+✔ You only add new rows
+✔ Never modify history
+
+---
+
+# 🚀 What you achieved now
+
+You now have:
+
+* Domain design ✔
+* API design ✔
+* Service layer ✔
+* Repository layer ✔
+* Database schema ✔
+
+_____________________________________________________________________________________________
+
+
+

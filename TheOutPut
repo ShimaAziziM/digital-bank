@@ -1,0 +1,466 @@
+Great question. Understanding the startup log is very useful because it tells you **what Spring Boot is doing step by step**.
+
+---
+
+# Spring Boot Banner
+
+```text
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+...
+:: Spring Boot ::                (v3.1.6)
+```
+
+This is just the **Spring Boot logo**.
+
+It also tells you the version:
+
+```text
+Spring Boot 3.1.6
+```
+
+Nothing is happening here except printing a welcome banner.
+
+---
+
+# 1. Starting the application
+
+```text
+Starting DigitalBankApplication using Java 17.0.19
+```
+
+### Meaning
+
+Spring Boot starts running your project.
+
+It also tells you:
+
+* Main class:
+
+  ```
+  DigitalBankApplication
+  ```
+
+* Java version:
+
+  ```
+  Java 17
+  ```
+
+---
+
+# 2. Active profile
+
+```text
+No active profile set, falling back to 1 default profile: "default"
+```
+
+### Meaning
+
+Spring supports **Profiles**.
+
+Example:
+
+```text
+Development
+Testing
+Production
+```
+
+Each profile can have different settings.
+
+Since you didn't specify one, Spring uses
+
+```text
+default
+```
+
+---
+
+# 3. Repository scanning
+
+```text
+Bootstrapping Spring Data JPA repositories
+```
+
+### Meaning
+
+Spring starts searching for interfaces like
+
+```java
+public interface CustomerRepository
+```
+
+or
+
+```java
+public interface BankAccountRepository
+```
+
+---
+
+Then
+
+```text
+Found 3 JPA repository interfaces.
+```
+
+means
+
+Spring found
+
+```
+CustomerRepository
+BankAccountRepository
+TransactionRepository
+```
+
+and creates implementations automatically.
+
+---
+
+# 4. Tomcat
+
+```text
+Tomcat initialized with port(s): 8080
+```
+
+### Meaning
+
+Spring starts the embedded web server.
+
+Instead of installing Tomcat separately,
+
+Spring Boot starts one itself.
+
+Port
+
+```
+8080
+```
+
+means
+
+```
+http://localhost:8080
+```
+
+---
+
+# 5. Starting Service
+
+```text
+Starting service [Tomcat]
+```
+
+Meaning
+
+Tomcat is starting.
+
+---
+
+# 6. Starting Servlet Engine
+
+```text
+Starting Servlet engine
+```
+
+Servlet is the technology that receives HTTP requests.
+
+Example
+
+```
+GET /Customer/1
+```
+
+The Servlet receives it and passes it to Spring.
+
+---
+
+# 7. WebApplicationContext
+
+```text
+Initializing Spring embedded WebApplicationContext
+```
+
+This is one of the most important steps.
+
+Think of it as Spring creating a huge container.
+
+Inside this container it stores every object like
+
+```
+CustomerService
+
+CustomerRepository
+
+CustomerController
+
+BankAccountService
+
+TransactionService
+```
+
+This container is called the **Spring Container**.
+
+---
+
+# 8. Context completed
+
+```text
+Root WebApplicationContext: initialization completed
+```
+
+Meaning
+
+Spring finished creating all Beans.
+
+Everything is ready.
+
+---
+
+# 9. Hibernate
+
+```text
+Processing PersistenceUnitInfo
+```
+
+Meaning
+
+Hibernate starts.
+
+Hibernate now searches for
+
+```java
+@Entity
+```
+
+classes.
+
+For example
+
+```
+Customer
+
+BankAccount
+
+Transaction
+```
+
+---
+
+# 10. Hibernate version
+
+```text
+Hibernate ORM core version 6.2.13.Final
+```
+
+Just tells you the version.
+
+---
+
+# 11. Bytecode Reflection Optimizer
+
+```text
+Using bytecode reflection optimizer
+```
+
+Meaning
+
+Hibernate uses an optimization technique to make entity access faster.
+
+You normally don't need to worry about this.
+
+---
+
+# 12. LoadTimeWeaver
+
+```text
+No LoadTimeWeaver setup
+```
+
+Meaning
+
+Spring checked whether advanced bytecode weaving is enabled.
+
+It isn't.
+
+This is completely normal.
+
+---
+
+# 13. HikariCP
+
+```text
+Customer - Starting...
+```
+
+HikariCP is the **connection pool**.
+
+Instead of opening a new database connection every request,
+
+it keeps several ready.
+
+---
+
+Then
+
+```text
+Added connection
+```
+
+means
+
+Spring successfully connected to MySQL.
+
+---
+
+Then
+
+```text
+Start completed
+```
+
+means
+
+Database connection is ready.
+
+---
+
+# 14. JTA Platform
+
+```text
+No JTA platform available
+```
+
+JTA is used for distributed transactions involving multiple databases or messaging systems.
+
+You have only one database.
+
+So this is perfectly fine.
+
+---
+
+# 15. EntityManagerFactory
+
+```text
+Initialized JPA EntityManagerFactory
+```
+
+This is another very important object.
+
+The `EntityManagerFactory` creates `EntityManager` objects.
+
+The `EntityManager` is responsible for operations such as:
+
+* Save entities
+* Find entities
+* Update entities
+* Delete entities
+
+Repositories use it internally.
+
+---
+
+# 16. Warning
+
+```text
+spring.jpa.open-in-view is enabled
+```
+
+This is only a warning.
+
+Spring keeps the database session open while generating the HTTP response.
+
+For learning projects, you can ignore it.
+
+---
+
+# 17. Tomcat started
+
+```text
+Tomcat started on port(s): 8080
+```
+
+Meaning
+
+Your web server is now accepting requests.
+
+You can open:
+
+```
+http://localhost:8080
+```
+
+---
+
+# 18. Started Application
+
+```text
+Started DigitalBankApplication in 4.549 seconds
+```
+
+Meaning
+
+Everything started successfully.
+
+Your application is now running.
+
+---
+
+# Complete startup flow
+
+```text
+1. Start Spring Boot
+        │
+        ▼
+2. Read application.properties
+        │
+        ▼
+3. Find Controllers
+        │
+        ▼
+4. Find Services
+        │
+        ▼
+5. Find Repositories
+        │
+        ▼
+6. Connect to MySQL
+        │
+        ▼
+7. Hibernate scans @Entity classes
+        │
+        ▼
+8. Create/Update tables (if needed)
+        │
+        ▼
+9. Start Tomcat
+        │
+        ▼
+10. Application ready
+```
+
+---
+
+## One thing I noticed in **your** log
+
+Your log **does not show** any Hibernate schema update messages such as:
+
+```text
+Hibernate: create table ...
+```
+
+or
+
+```text
+Hibernate: alter table ...
+```
+
+Normally, with:
+
+```properties
+spring.jpa.hibernate.ddl-auto=update
+```
+
+Hibernate checks your entities and updates the database schema if necessary. The absence of those messages is why we were investigating why your `BankAccount` table wasn't being created.
