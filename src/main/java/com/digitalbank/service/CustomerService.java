@@ -39,15 +39,16 @@ public class CustomerService {
     }
 
 
-    public Customer closeCustomer(int id){
+    public CustomerResponseDTO closeCustomer(int id){
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new CustomerNotFoundException("Customer not Found."));
         if (customer.getCustomerStatus() != CustomerStatus.CLOSED)
             customer.setCustomerStatus(CustomerStatus.CLOSED);
         else {
-            throw new CustomerAlreadyClosedException("Customer com.digitalbank.entity.Status is already CLOSED.");
+            throw new CustomerAlreadyClosedException("Status is already CLOSED.");
         }
-        return customerRepository.save(customer);
+        Customer UpdatedCustomer = customerRepository.save(customer);
+        return customerMapper.toDTO(UpdatedCustomer);
 
     }
     public Customer activeCustomer(int id){

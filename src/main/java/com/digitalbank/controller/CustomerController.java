@@ -22,8 +22,8 @@ public class CustomerController {
         return customerService.getCustomerById(id);
     }
     @PostMapping("/close/{id}")
-    public Customer closeCustomer(@PathVariable int id){
-        return (Customer) customerService.closeCustomer(id);
+    public CustomerResponseDTO closeCustomer(@PathVariable int id){
+        return customerService.closeCustomer(id);
     }
     @PostMapping("/active/{id}")
     public Customer activeCustomer(@PathVariable int id){
